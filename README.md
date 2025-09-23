@@ -49,7 +49,7 @@ python watermark.py 图片路径 --font-size 字体大小 --text-color 文本颜
 - `--font-size`：设置水印字体大小（默认值：30）
 - `--text-color`：设置水印文本颜色（支持多种格式，默认值：black）
 - `--bg-color`：设置水印背景颜色（支持多种格式，默认值：white）
-- `--position`：设置水印位置（可选值：top-left、top-right、bottom-left、bottom-right、center，默认值：bottom-right）
+- `--position`：设置水印位置（可选值：top-left、top-right、bottom-left、bottom-right、center、top、bottom、left、right，默认值：bottom-right）
 
 #### 颜色格式：
 

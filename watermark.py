@@ -131,6 +131,14 @@ def add_watermark_to_image(image_path, output_dir, font_size=30, text_color='bla
             x, y = width - text_width - margin, height - text_height - margin
         elif position == 'center':
             x, y = (width - text_width) // 2, (height - text_height) // 2
+        elif position == 'top':
+            x, y = (width - text_width) // 2, margin
+        elif position == 'bottom':
+            x, y = (width - text_width) // 2, height - text_height - margin
+        elif position == 'left':
+            x, y = margin, (height - text_height) // 2
+        elif position == 'right':
+            x, y = width - text_width - margin, (height - text_height) // 2
         else:
             # 默认右下角
             x, y = width - text_width - margin, height - text_height - margin
@@ -191,7 +199,7 @@ if __name__ == "__main__":
     parser.add_argument('--text-color', type=str, default='black', help='水印文本颜色（支持十六进制、RGB元组或预定义颜色名，默认：black）')
     parser.add_argument('--bg-color', type=str, default='white', help='水印背景颜色（支持十六进制、RGB元组或预定义颜色名，默认：white）')
     parser.add_argument('--position', type=str, default='bottom-right', 
-                        choices=['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'],
+                        choices=['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center', 'top', 'bottom', 'left', 'right'],
                         help='水印位置（默认：bottom-right）')
     args = parser.parse_args()
 
