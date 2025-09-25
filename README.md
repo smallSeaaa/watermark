@@ -41,14 +41,13 @@ python watermark.py 目录路径
 程序提供了多个可选参数来自定义水印效果：
 
 ```bash
-python watermark.py 图片路径 --font-size 字体大小 --text-color 文本颜色 --bg-color 背景颜色 --position 位置
+python watermark.py 图片路径 --font-size 字体大小 --text-color 文本颜色 --position 位置
 ```
 
 #### 可用选项：
 
 - `--font-size`：设置水印字体大小（默认值：30）
 - `--text-color`：设置水印文本颜色（支持多种格式，默认值：black）
-- `--bg-color`：设置水印背景颜色（支持多种格式，默认值：white）
 - `--position`：设置水印位置（可选值：top-left、top-right、bottom-left、bottom-right、center、top、bottom、left、right，默认值：bottom-right）
 
 #### 颜色格式：
@@ -67,10 +66,10 @@ python watermark.py 图片路径 --font-size 字体大小 --text-color 文本颜
    python watermark.py picture\1.jpg --font-size 40
    ```
 
-2. 使用红色文本和半透明白色背景：
+2. 使用红色文本：
 
    ```bash
-   python watermark.py picture\1.jpg --text-color red --bg-color "(255,255,255,128)"
+   python watermark.py picture\1.jpg --text-color red
    ```
 
 3. 将水印放在图片中心：
@@ -81,7 +80,7 @@ python watermark.py 图片路径 --font-size 字体大小 --text-color 文本颜
 
 4. 组合多个选项：
    ```bash
-   python watermark.py picture --font-size 25 --text-color blue --bg-color "#FFFF0080" --position top-left
+   python watermark.py picture --font-size 25 --text-color blue --position top-left
    ```
 
 ## 输出说明
@@ -107,12 +106,15 @@ python watermark.py picture
 
 - 支持单张图片或批量导入图片文件
 - 支持选择整个文件夹中的图片
-- 图形化设置水印参数（字体大小、颜色、位置等）
+- 图形化设置水印参数（字体大小、颜色、位置、透明度等）
 - 设置输出文件夹和导出格式（JPEG/PNG）
 - 自定义输出文件命名规则（保留原名、添加前缀/后缀）
 - JPEG质量调节（0-100范围滑块控制）
 - 图片尺寸调整功能（原始尺寸、等比例缩放、调整宽度、调整高度）
 - 显示处理进度和结果统计
+- 水印类型选择：支持使用拍摄日期或自定义文本作为水印
+- 自定义水印文本：用户可以输入任意文字作为水印内容
+- 水印透明度调节：0表示完全不透明，100表示完全透明（初始值为0）
 
 ### 使用方法
 
@@ -134,7 +136,8 @@ python watermark_gui.py
 
    - 通过滑块设置字体大小
    - 选择水印位置（支持 9 种位置选项）
-   - 选择文本颜色和背景颜色
+   - 选择文本颜色
+   - 通过滑块设置水印透明度（0表示完全不透明，100表示完全透明）
 
 3. **导出设置区域**：
 

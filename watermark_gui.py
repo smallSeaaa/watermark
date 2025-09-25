@@ -172,14 +172,39 @@ class WatermarkApp:
         text_color_combo = ttk.Combobox(text_color_frame, textvariable=self.text_color_var, values=colors, state="readonly", width=15)
         text_color_combo.pack(side=tk.LEFT, padx=5)
         
-        # 背景颜色设置
-        bg_color_frame = tk.Frame(settings_frame)
-        bg_color_frame.pack(fill=tk.X, pady=5)
+        # 文本透明度设置
+        opacity_frame = tk.Frame(settings_frame)
+        opacity_frame.pack(fill=tk.X, pady=5)
         
-        tk.Label(bg_color_frame, text="背景颜色:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
-        self.bg_color_var = tk.StringVar(value="white")
-        bg_color_combo = ttk.Combobox(bg_color_frame, textvariable=self.bg_color_var, values=colors, state="readonly", width=15)
-        bg_color_combo.pack(side=tk.LEFT, padx=5)
+        tk.Label(opacity_frame, text="文本透明度:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        self.opacity_var = tk.IntVar(value=0)  # 默认完全不透明（透明度为0）
+        tk.Scale(opacity_frame, from_=0, to=100, orient=tk.HORIZONTAL, variable=self.opacity_var, length=200).pack(side=tk.LEFT, padx=5)
+        tk.Label(opacity_frame, textvariable=self.opacity_var, font=self.font_config['normal'], width=5).pack(side=tk.LEFT, padx=5)
+        tk.Label(opacity_frame, text="%", font=self.font_config['normal']).pack(side=tk.LEFT, padx=5)
+        
+        # 水印文本类型设置
+        text_type_frame = tk.Frame(settings_frame)
+        text_type_frame.pack(fill=tk.X, pady=5)
+        
+        tk.Label(text_type_frame, text="水印类型:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        self.text_type_var = tk.StringVar(value="date")
+        
+        # 创建水印类型选项组
+        text_type_options = tk.Frame(text_type_frame)
+        text_type_options.pack(side=tk.LEFT, padx=5)
+        
+        tk.Radiobutton(text_type_options, text="拍摄日期", variable=self.text_type_var, value="date", font=self.font_config['normal']).pack(side=tk.LEFT, padx=5)
+        tk.Radiobutton(text_type_options, text="自定义文本", variable=self.text_type_var, value="custom", font=self.font_config['normal']).pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+        
+        # 自定义文本输入框
+        self.custom_text_var = tk.StringVar(value="")
+        self.custom_text_entry = tk.Entry(text_type_frame, textvariable=self.custom_text_var, font=self.font_config['normal'], width=30)
+        self.custom_text_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+        # 初始状态下禁用自定义文本输入框
+        self.custom_text_entry.config(state="disabled")
+        
+        # 绑定水印类型变化事件
+        self.text_type_var.trace_add("write", self.on_text_type_change)
         
         # 创建导出设置区域
         export_frame = ttk.LabelFrame(self.root, text="导出设置", padding=(10, 5))
@@ -486,6 +511,14 @@ class WatermarkApp:
         self.height_entry.config(state=height_state)
         self.percent_entry.config(state=percent_state)
         
+    def on_text_type_change(self, *args):
+        # 根据选择的水印类型启用或禁用自定义文本输入框
+        text_type = self.text_type_var.get()
+        if text_type == "custom":
+            self.custom_text_entry.config(state="normal")
+        else:
+            self.custom_text_entry.config(state="disabled")
+        
     def process_images(self):
         # 处理所有图片
         success_count = 0
@@ -499,7 +532,7 @@ class WatermarkApp:
                     self.output_folder_var.get(),
                     self.font_size_var.get(),
                     self.text_color_var.get(),
-                    self.bg_color_var.get(),
+                    'white',  # 背景颜色默认值（不再使用）
                     self.position_var.get(),
                     self.output_format_var.get(),
                     self.jpeg_quality_var.get(),
@@ -589,8 +622,9 @@ class WatermarkApp:
             print(f"读取EXIF信息时出错 {image_path}: {e}")
             return None
     
-    def parse_color(self, color_str):
-        # 解析颜色字符串
+    def parse_color(self, color_str, opacity=100):
+        # 解析颜色字符串，opacity参数控制透明度(0-100%)
+        # 注意：opacity值越大，透明度越高
         # 预定义颜色映射
         color_map = {
             'black': (0, 0, 0, 255),
@@ -605,7 +639,10 @@ class WatermarkApp:
         
         # 检查是否为预定义颜色
         if color_str.lower() in color_map:
-            return color_map[color_str.lower()]
+            r, g, b, a = color_map[color_str.lower()]
+            # 应用透明度：opacity值越大，透明度越高
+            a = int(a * (100 - opacity) / 100)
+            return (r, g, b, a)
         
         # 检查是否为十六进制颜色
         hex_pattern = r'^#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?$'
@@ -617,6 +654,8 @@ class WatermarkApp:
             g = int(rgb_hex[2:4], 16)
             b = int(rgb_hex[4:6], 16)
             a = int(alpha_hex, 16)
+            # 应用透明度：opacity值越大，透明度越高
+            a = int(a * (100 - opacity) / 100)
             return (r, g, b, a)
         
         # 检查是否为RGB/RGBA元组格式
@@ -632,11 +671,13 @@ class WatermarkApp:
             g = max(0, min(255, g))
             b = max(0, min(255, b))
             a = max(0, min(255, a))
+            # 应用透明度：opacity值越大，透明度越高
+            a = int(a * (100 - opacity) / 100)
             return (r, g, b, a)
         
         # 默认返回黑色
         print(f"警告: 无法解析颜色 '{color_str}'，使用默认黑色")
-        return (0, 0, 0, 255)
+        return (0, 0, 0, int(255 * opacity / 100))
     
     def add_watermark_to_image(self, image_path, output_dir, font_size=30, text_color='black', bg_color='white', position='bottom-right', output_format='JPEG', quality=95, resize_method='none', target_width=1920, target_height=1080, scale_percent=100):
         # 为图片添加水印并保存
@@ -665,23 +706,84 @@ class WatermarkApp:
                 img = img.resize((new_width, new_height), Image.LANCZOS)
                 width, height = img.size
                 
+            # 确保图像支持透明度
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+            
             # 创建绘制对象
             draw = ImageDraw.Draw(img)
             
-            # 获取水印文本（从调用参数获取，已经在process_images中处理过）
-            watermark_text = self.get_exif_datetime(image_path)
-            if not watermark_text:
-                # 如果没有EXIF日期信息，使用文件修改时间
-                mtime = os.path.getmtime(image_path)
-                dt = datetime.fromtimestamp(mtime)
-                watermark_text = dt.strftime('%Y-%m-%d')
+            # 根据水印类型获取水印文本
+            text_type = self.text_type_var.get()
+            if text_type == "custom":
+                # 使用自定义文本
+                watermark_text = self.custom_text_var.get().strip()
+                # 如果自定义文本为空，使用日期作为默认值
+                if not watermark_text:
+                    watermark_text = self.get_exif_datetime(image_path)
+                    if not watermark_text:
+                        # 如果没有EXIF日期信息，使用文件修改时间
+                        mtime = os.path.getmtime(image_path)
+                        dt = datetime.fromtimestamp(mtime)
+                        watermark_text = dt.strftime('%Y-%m-%d')
+            else:
+                # 使用日期水印
+                watermark_text = self.get_exif_datetime(image_path)
+                if not watermark_text:
+                    # 如果没有EXIF日期信息，使用文件修改时间
+                    mtime = os.path.getmtime(image_path)
+                    dt = datetime.fromtimestamp(mtime)
+                    watermark_text = dt.strftime('%Y-%m-%d')
             
-            # 设置水印字体和大小
+            # 设置水印字体和大小 - 改进版本支持中文
+            font = None
             try:
-                # 尝试使用系统字体
-                font = ImageFont.truetype("arial.ttf", font_size)
-            except IOError:
-                # 如果没有找到指定字体，使用默认字体
+                # 方法1: 尝试使用系统字体目录
+                import sys
+                if sys.platform.startswith('win'):
+                    # Windows系统字体目录
+                    font_dirs = ['C:\\Windows\\Fonts']
+                    # Windows常用中文字体文件名
+                    win_font_files = ['msyh.ttc', 'simhei.ttf', 'simsun.ttc', 'msyhbd.ttc', 'simkai.ttf']
+                    
+                    for font_dir in font_dirs:
+                        if os.path.exists(font_dir):
+                            for font_file in win_font_files:
+                                font_path = os.path.join(font_dir, font_file)
+                                if os.path.exists(font_path):
+                                    try:
+                                        print(f"尝试从路径加载字体: {font_path}, 大小: {font_size}")
+                                        font = ImageFont.truetype(font_path, font_size)
+                                        print(f"成功加载字体: {font_file}")
+                                        break
+                                    except (IOError, OSError):
+                                        continue
+                            if font is not None:
+                                break
+                
+                # 方法2: 如果方法1失败，尝试使用字体名称（PIL会搜索系统字体）
+                if font is None:
+                    # 尝试使用常见中文字体名称
+                    font_names = ["Microsoft YaHei", "SimHei", "SimSun", "KaiTi", "Arial Unicode MS"]
+                    for font_name in font_names:
+                        try:
+                            print(f"尝试使用字体名称加载: {font_name}, 大小: {font_size}")
+                            font = ImageFont.truetype(font_name, font_size)
+                            print(f"成功加载字体: {font_name}")
+                            break
+                        except (IOError, OSError):
+                            continue
+                
+                # 方法3: 如果前面都失败，使用PIL默认字体并启用抗锯齿
+                if font is None:
+                    print(f"无法加载中文字体，使用PIL默认字体，大小: {font_size}")
+                    # 使用默认字体并确保字体大小正确设置
+                    font = ImageFont.load_default()
+                    
+                    # 这里需要注意：默认字体可能不支持中文，但我们已经添加了足够的日志记录以帮助排查问题
+            except Exception as e:
+                print(f"字体加载异常: {str(e)}")
+                # 出现任何异常，都使用默认字体
                 font = ImageFont.load_default()
             
             # 获取文本大小
@@ -713,14 +815,24 @@ class WatermarkApp:
                 # 默认右下角
                 x, y = width - text_width - margin, height - text_height - margin
             
-            # 解析颜色
-            text_color_rgba = self.parse_color(text_color)
-            bg_color_rgba = self.parse_color(bg_color)
+            # 获取透明度设置
+            text_opacity = self.opacity_var.get()
             
-            # 添加半透明背景
-            draw.rectangle([x-5, y-5, x+text_width+5, y+text_height+5], fill=bg_color_rgba)
-            # 添加水印文本
-            draw.text((x, y), watermark_text, font=font, fill=text_color_rgba)
+            # 解析颜色并应用透明度
+            text_color_rgba = self.parse_color(text_color, text_opacity)
+            # 不再使用背景颜色 - 移除背景绘制
+            
+            # 创建一个透明图层用于绘制水印
+            watermark_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
+            watermark_draw = ImageDraw.Draw(watermark_layer)
+            
+            # 在透明图层上绘制水印文本（无背景）
+            watermark_draw.text((x, y), watermark_text, font=font, fill=text_color_rgba)
+            
+            # 将水印图层合并到原图上
+            img = Image.alpha_composite(img, watermark_layer)
+            
+            # 不再需要背景颜色设置 - 代码中已移除背景绘制
             
             # 确保输出目录存在
             os.makedirs(output_dir, exist_ok=True)
@@ -754,13 +866,10 @@ class WatermarkApp:
                 img.save(output_path, format='PNG')
             else:  # JPEG or JPG
                 # 统一使用JPEG格式保存，因为JPG是JPEG的一种常见扩展名
-                # 如果是RGBA图像，转换为RGB
-                if img.mode == 'RGBA':
-                    background = Image.new('RGB', img.size, (255, 255, 255))
-                    background.paste(img, mask=img.split()[3])  # 3 is the alpha channel
-                    background.save(output_path, format='JPEG', quality=quality)
-                else:
-                    img.save(output_path, format='JPEG', quality=quality)
+                # 由于我们已经处理了透明度，这里直接使用alpha通道作为蒙版
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[3])  # 3 is the alpha channel
+                background.save(output_path, format='JPEG', quality=quality)
             
             return True
         except Exception as e:
