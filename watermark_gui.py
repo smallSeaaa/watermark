@@ -17,7 +17,12 @@ class WatermarkApp:
     def __init__(self, root):
         self.root = root
         self.root.title("图片日期水印工具")
-        self.root.geometry("900x700")
+        # 进一步增大窗口尺寸，提供更宽敞的操作空间
+        self.root.geometry("1100x900")
+        self.root.minsize(1000, 800)
+        # 窗口尺寸变化时自动调整布局
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
         
         # 设置中文字体
         self.font_config = {
@@ -199,19 +204,105 @@ class WatermarkApp:
         format_combo = ttk.Combobox(output_format_frame, textvariable=self.output_format_var, values=formats, state="readonly", width=15)
         format_combo.pack(side=tk.LEFT, padx=5)
         
-        # 命名规则设置
+        # 绑定格式变化事件，用于控制质量滑块的可用状态
+        format_combo.bind("<<ComboboxSelected>>", self.on_format_change)
+        
+        # JPEG质量设置
+        self.jpeg_quality_var = tk.IntVar(value=95)
+        self.quality_frame = tk.Frame(export_frame)
+        self.quality_frame.pack(fill=tk.X, pady=5)
+        
+        self.quality_label = tk.Label(self.quality_frame, text="JPEG质量:", font=self.font_config['normal'], width=10)
+        self.quality_label.pack(side=tk.LEFT, padx=5)
+        self.quality_scale = tk.Scale(self.quality_frame, from_=1, to=100, orient=tk.HORIZONTAL, 
+                                    variable=self.jpeg_quality_var, length=200)
+        self.quality_scale.pack(side=tk.LEFT, padx=5)
+        self.quality_value_label = tk.Label(self.quality_frame, textvariable=self.jpeg_quality_var, 
+                                          font=self.font_config['normal'], width=5)
+        self.quality_value_label.pack(side=tk.LEFT, padx=5)
+        
+        # 初始状态检查，确保只有JPEG/JPG格式时质量控制才可用
+        self.update_quality_control_state()
+        
+        # 图片尺寸设置
+        resize_frame = ttk.LabelFrame(export_frame, text="图片尺寸设置", padding=(10, 5))
+        resize_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # 缩放方式选择 - 优化布局
+        resize_control_frame = tk.Frame(resize_frame)
+        resize_control_frame.pack(fill=tk.X, pady=5)
+        
+        tk.Label(resize_control_frame, text="缩放方式:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        self.resize_method_var = tk.StringVar(value="none")
+        resize_options = ["不缩放", "按宽度", "按高度", "按百分比"]
+        self.resize_combo = ttk.Combobox(resize_control_frame, textvariable=self.resize_method_var, values=resize_options, state="readonly", width=10)
+        self.resize_combo.pack(side=tk.LEFT, padx=5)
+        self.resize_combo.bind("<<ComboboxSelected>>", lambda _: self.update_resize_control_state())
+        
+        # 创建一个字典来映射显示文本和实际值
+        self.resize_method_map = {opt: val for opt, val in zip(resize_options, ["none", "width", "height", "percent"])}
+        
+        # 尺寸输入控件 - 更紧凑的布局
+        size_input_frame = tk.Frame(resize_frame)
+        size_input_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # 宽度输入
+        width_frame = tk.Frame(size_input_frame)
+        width_frame.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
+        tk.Label(width_frame, text="宽度:", font=self.font_config['normal'], width=5).pack(side=tk.LEFT, padx=5)
+        self.width_var = tk.IntVar(value=1920)
+        self.width_entry = tk.Entry(width_frame, textvariable=self.width_var, width=8)
+        self.width_entry.pack(side=tk.LEFT, padx=5)
+        tk.Label(width_frame, text="像素", font=self.font_config['normal']).pack(side=tk.LEFT, padx=5)
+        
+        # 高度输入
+        height_frame = tk.Frame(size_input_frame)
+        height_frame.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
+        tk.Label(height_frame, text="高度:", font=self.font_config['normal'], width=5).pack(side=tk.LEFT, padx=5)
+        self.height_var = tk.IntVar(value=1080)
+        self.height_entry = tk.Entry(height_frame, textvariable=self.height_var, width=8)
+        self.height_entry.pack(side=tk.LEFT, padx=5)
+        tk.Label(height_frame, text="像素", font=self.font_config['normal']).pack(side=tk.LEFT, padx=5)
+        
+        # 百分比输入
+        percent_frame = tk.Frame(size_input_frame)
+        percent_frame.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
+        tk.Label(percent_frame, text="缩放百分比:", font=self.font_config['normal'], width=8).pack(side=tk.LEFT, padx=5)
+        self.percent_var = tk.IntVar(value=100)
+        self.percent_entry = tk.Entry(percent_frame, textvariable=self.percent_var, width=8)
+        self.percent_entry.pack(side=tk.LEFT, padx=5)
+        tk.Label(percent_frame, text="%", font=self.font_config['normal']).pack(side=tk.LEFT, padx=5)
+        
+        # 调用更新方法设置初始状态
+        self.update_resize_control_state()
+        
+        # 命名规则设置 - 优化布局
         naming_frame = tk.Frame(export_frame)
         naming_frame.pack(fill=tk.X, pady=5)
         
+        # 左侧标签
         tk.Label(naming_frame, text="命名规则:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        
+        # 创建选项组
+        name_options_frame = tk.Frame(naming_frame)
+        name_options_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
         self.naming_var = tk.StringVar(value="suffix")
-        tk.Radiobutton(naming_frame, text="保留原名", variable=self.naming_var, value="original", font=self.font_config['normal']).pack(side=tk.LEFT, padx=5)
-        tk.Radiobutton(naming_frame, text="添加前缀:", variable=self.naming_var, value="prefix", font=self.font_config['normal']).pack(side=tk.LEFT, padx=5)
+        tk.Radiobutton(name_options_frame, text="保留原名", variable=self.naming_var, value="original", font=self.font_config['normal']).pack(side=tk.LEFT, padx=5)
+        
+        # 前缀选项
+        prefix_frame = tk.Frame(name_options_frame)
+        prefix_frame.pack(side=tk.LEFT, padx=5)
+        tk.Radiobutton(prefix_frame, text="添加前缀:", variable=self.naming_var, value="prefix", font=self.font_config['normal']).pack(side=tk.LEFT)
         self.prefix_var = tk.StringVar(value="wm_")
-        tk.Entry(naming_frame, textvariable=self.prefix_var, font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
-        tk.Radiobutton(naming_frame, text="添加后缀:", variable=self.naming_var, value="suffix", font=self.font_config['normal']).pack(side=tk.LEFT, padx=5)
+        tk.Entry(prefix_frame, textvariable=self.prefix_var, font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        
+        # 后缀选项
+        suffix_frame = tk.Frame(name_options_frame)
+        suffix_frame.pack(side=tk.LEFT, padx=5)
+        tk.Radiobutton(suffix_frame, text="添加后缀:", variable=self.naming_var, value="suffix", font=self.font_config['normal']).pack(side=tk.LEFT)
         self.suffix_var = tk.StringVar(value="_watermarked")
-        tk.Entry(naming_frame, textvariable=self.suffix_var, font=self.font_config['normal'], width=15).pack(side=tk.LEFT, padx=5)
+        tk.Entry(suffix_frame, textvariable=self.suffix_var, font=self.font_config['normal'], width=15).pack(side=tk.LEFT, padx=5)
         
         # 创建图片列表区域
         list_frame = ttk.LabelFrame(self.root, text="已导入图片", padding=(10, 5))
@@ -368,6 +459,33 @@ class WatermarkApp:
         thread.daemon = True
         thread.start()
     
+    def on_format_change(self, event=None):
+        # 当输出格式改变时调用，更新质量控制UI的可用状态
+        self.update_quality_control_state()
+        
+    def update_quality_control_state(self):
+        # 根据当前选择的输出格式，设置质量控制UI的可用状态
+        is_jpeg = self.output_format_var.get() in ['JPEG', 'JPG']
+        state = 'normal' if is_jpeg else 'disabled'
+        
+        # 更新UI元素状态
+        self.quality_label.config(state=state)
+        self.quality_scale.config(state=state)
+        self.quality_value_label.config(state=state)
+        
+    def update_resize_control_state(self):
+        # 根据当前选择的缩放方式，设置尺寸控制UI的可用状态
+        resize_method = self.resize_method_map.get(self.resize_method_var.get(), "none")
+        
+        # 根据缩放方式启用或禁用相应的控件
+        width_state = "normal" if resize_method == "width" else "disabled"
+        height_state = "normal" if resize_method == "height" else "disabled"
+        percent_state = "normal" if resize_method == "percent" else "disabled"
+        
+        self.width_entry.config(state=width_state)
+        self.height_entry.config(state=height_state)
+        self.percent_entry.config(state=percent_state)
+        
     def process_images(self):
         # 处理所有图片
         success_count = 0
@@ -383,7 +501,12 @@ class WatermarkApp:
                     self.text_color_var.get(),
                     self.bg_color_var.get(),
                     self.position_var.get(),
-                    self.output_format_var.get()
+                    self.output_format_var.get(),
+                    self.jpeg_quality_var.get(),
+                    self.resize_method_map.get(self.resize_method_var.get(), "none"),
+                    self.width_var.get(),
+                    self.height_var.get(),
+                    self.percent_var.get()
                 )
                 
                 if success:
@@ -515,13 +638,35 @@ class WatermarkApp:
         print(f"警告: 无法解析颜色 '{color_str}'，使用默认黑色")
         return (0, 0, 0, 255)
     
-    def add_watermark_to_image(self, image_path, output_dir, font_size=30, text_color='black', bg_color='white', position='bottom-right', output_format='JPEG'):
+    def add_watermark_to_image(self, image_path, output_dir, font_size=30, text_color='black', bg_color='white', position='bottom-right', output_format='JPEG', quality=95, resize_method='none', target_width=1920, target_height=1080, scale_percent=100):
         # 为图片添加水印并保存
         try:
             # 打开图片
             img = Image.open(image_path)
-            draw = ImageDraw.Draw(img)
             width, height = img.size
+            
+            # 根据调整方式调整图片尺寸
+            if resize_method == 'width':
+                # 按宽度缩放
+                ratio = target_width / width
+                new_height = int(height * ratio)
+                img = img.resize((target_width, new_height), Image.LANCZOS)
+                width, height = img.size
+            elif resize_method == 'height':
+                # 按高度缩放
+                ratio = target_height / height
+                new_width = int(width * ratio)
+                img = img.resize((new_width, target_height), Image.LANCZOS)
+                width, height = img.size
+            elif resize_method == 'percent':
+                # 按百分比缩放
+                new_width = int(width * scale_percent / 100)
+                new_height = int(height * scale_percent / 100)
+                img = img.resize((new_width, new_height), Image.LANCZOS)
+                width, height = img.size
+                
+            # 创建绘制对象
+            draw = ImageDraw.Draw(img)
             
             # 获取水印文本（从调用参数获取，已经在process_images中处理过）
             watermark_text = self.get_exif_datetime(image_path)
@@ -613,9 +758,9 @@ class WatermarkApp:
                 if img.mode == 'RGBA':
                     background = Image.new('RGB', img.size, (255, 255, 255))
                     background.paste(img, mask=img.split()[3])  # 3 is the alpha channel
-                    background.save(output_path, format='JPEG', quality=95)
+                    background.save(output_path, format='JPEG', quality=quality)
                 else:
-                    img.save(output_path, format='JPEG', quality=95)
+                    img.save(output_path, format='JPEG', quality=quality)
             
             return True
         except Exception as e:
