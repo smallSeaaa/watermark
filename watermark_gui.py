@@ -32,9 +32,6 @@ class WatermarkApp:
         
         # 创建主布局
         self.create_widgets()
-        
-        # 设置拖拽功能
-        self.setup_drag_and_drop()
     
     def create_widgets(self):
         # 创建顶部按钮区域
@@ -115,7 +112,7 @@ class WatermarkApp:
         
         tk.Label(output_format_frame, text="输出格式:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
         self.output_format_var = tk.StringVar(value="JPEG")
-        formats = ['JPEG', 'PNG']
+        formats = ['JPEG', 'JPG', 'PNG']
         format_combo = ttk.Combobox(output_format_frame, textvariable=self.output_format_var, values=formats, state="readonly", width=15)
         format_combo.pack(side=tk.LEFT, padx=5)
         
@@ -168,40 +165,7 @@ class WatermarkApp:
         self.status_label = tk.Label(self.root, textvariable=self.status_var, font=self.font_config['normal'], bd=1, relief=tk.SUNKEN, anchor=tk.W)
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
     
-    def setup_drag_and_drop(self):
-        # 注意：在tkinter中实现跨平台的文件拖放功能较为复杂
-        # 如需完整的拖放支持，建议安装tkinterdnd2库
-        # 目前暂时禁用拖放功能，确保应用程序能够正常启动
-        print("拖放功能已禁用。如需使用此功能，建议安装tkinterdnd2库。")
-    
-    def on_drag_enter(self, event):
-        # 拖拽进入事件
-        self.status_var.set("拖拽图片到此处...")
-    
-    def on_drag_leave(self, event):
-        # 拖拽离开事件
-        self.status_var.set("就绪")
-    
-    def on_drop(self, event):
-        # macOS上的拖放事件
-        self.status_var.set("就绪")
-        try:
-            # 获取拖放的文件路径
-            if sys.platform == 'darwin':  # macOS
-                files = self.root.tk.splitlist(event.data)
-                self.add_images(files)
-        except Exception as e:
-            messagebox.showerror("错误", f"拖放文件失败: {str(e)}")
-    
-    def on_drop_files(self, event):
-        # Windows上的拖放事件
-        self.status_var.set("就绪")
-        try:
-            # 获取拖放的文件路径
-            files = self.root.tk.splitlist(event.data)
-            self.add_images(files)
-        except Exception as e:
-            messagebox.showerror("错误", f"拖放文件失败: {str(e)}")
+
     
     def import_images(self):
         # 导入单张或多张图片
@@ -521,12 +485,10 @@ class WatermarkApp:
             # 根据输出格式调整扩展名
             if output_format == 'PNG':
                 output_filename = os.path.splitext(output_filename)[0] + '.png'
+            elif output_format == 'JPG':
+                output_filename = os.path.splitext(output_filename)[0] + '.jpg'
             else:  # JPEG
-                # 保持原图片的扩展名（jpg或jpeg）
-                if ext.lower() == '.jpeg':
-                    output_filename = os.path.splitext(output_filename)[0] + '.jpeg'
-                else:
-                    output_filename = os.path.splitext(output_filename)[0] + '.jpg'
+                output_filename = os.path.splitext(output_filename)[0] + '.jpeg'
             
             # 保存图片
             output_path = os.path.join(output_dir, output_filename)
@@ -534,7 +496,8 @@ class WatermarkApp:
             # 根据输出格式设置保存参数
             if output_format == 'PNG':
                 img.save(output_path, format='PNG')
-            else:  # JPEG
+            else:  # JPEG or JPG
+                # 统一使用JPEG格式保存，因为JPG是JPEG的一种常见扩展名
                 # 如果是RGBA图像，转换为RGB
                 if img.mode == 'RGBA':
                     background = Image.new('RGB', img.size, (255, 255, 255))
