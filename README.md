@@ -156,10 +156,27 @@ python watermark_gui.py
 - 为防止覆盖原图，程序默认禁止导出到原文件夹
 - 程序会自动检测图片的 EXIF 信息获取拍摄日期
 - 如无 EXIF 信息，将使用文件修改时间作为水印日期
-- 拖放功能当前已禁用，如需使用此功能，建议安装 tkinterdnd2 库
+- 支持直接将图片拖放到程序窗口中进行导入
+  - 拖放时光标会显示为允许拖放的手型
+  - 支持同时拖拽多个图片文件
 
 ### 系统要求
 
 - Windows 或 macOS 操作系统
 - Python 3.6 或更高版本
 - 已安装的依赖库（见 requirements.txt）
+
+## 依赖说明
+
+项目使用以下主要依赖库：
+
+- **Pillow**：用于图像处理和水印添加
+- **exifread**：用于读取图片的EXIF信息
+- **tkinter**：Python标准GUI库（大多数Python安装已包含）
+- **tkinterdnd2**：提供拖放功能支持
+
+安装所有依赖：
+
+```bash
+pip install -r requirements.txt
+```

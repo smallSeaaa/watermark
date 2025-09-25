@@ -30,8 +30,91 @@ class WatermarkApp:
         # 存储缩略图
         self.thumbnails = []
         
+        # 窗口过程相关变量
+        self.original_wnd_proc = None
+        self.new_wnd_proc = None
+        self.LRESULT = None
+        self.root_handle = None
+        
+        # 启用拖拽功能
+        self.enable_drag_and_drop()
+        
         # 创建主布局
         self.create_widgets()
+        
+        # 绑定窗口关闭事件，确保清理资源
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
+    def enable_drag_and_drop(self):
+        # 启用主窗口接受拖放功能
+        try:
+            # 添加提示文本，告知用户可以拖拽文件
+            self.drag_hint = tk.Label(self.root, text="提示: 您可以直接将图片拖放到窗口中进行导入", 
+                                     font=self.font_config['normal'], fg="gray")
+            self.drag_hint.pack(pady=5)
+            
+            # 在Windows上，当文件被拖放到应用程序窗口时，文件路径会作为命令行参数传递
+            # 我们在应用启动时就检查是否有拖放的文件
+            self.check_for_dropped_files_at_startup()
+            
+            # 尝试使用tkinterdnd2库实现拖放功能
+            try:
+                from tkinterdnd2 import DND_FILES, TkinterDnD
+                
+                # 在主窗口上注册拖放功能
+                if hasattr(self.root, 'drop_target_register'):
+                    # 注册接受文件拖放
+                    self.root.drop_target_register(DND_FILES)
+                    
+                    # 绑定拖放事件处理函数
+                    def on_dnd_drop(event):
+                        try:
+                            # 获取拖放的文件路径
+                            file_paths = event.data.strip('{}').split()
+                            
+                            # 检查是否是图片文件
+                            image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif']
+                            valid_image_paths = []
+                            for file_path in file_paths:
+                                # 去除可能的引号
+                                file_path = file_path.strip('"\'')
+                                if os.path.isfile(file_path):
+                                    _, ext = os.path.splitext(file_path)
+                                    if ext.lower() in image_extensions:
+                                        valid_image_paths.append(file_path)
+                            
+                            # 如果有有效的图片文件，添加到列表
+                            if valid_image_paths:
+                                self.add_images(valid_image_paths)
+                        except Exception as e:
+                            print(f"拖放处理错误: {e}")
+                            messagebox.showerror("拖放错误", f"处理拖放文件时出错: {str(e)}")
+                    
+                    # 绑定拖放事件
+                    self.root.dnd_bind('<<Drop>>', on_dnd_drop)
+                    
+                    # 设置光标样式
+                    # 注意：tkinterdnd2可能不直接支持DragEnter和DragLeave事件
+                    # 我们尝试使用通用的Enter和Leave事件来处理光标样式
+                    def on_enter(event):
+                        self.root.config(cursor="hand2")
+                    
+                    def on_leave(event):
+                        self.root.config(cursor="arrow")
+                    
+                    self.root.bind('<Enter>', on_enter)
+                    self.root.bind('<Leave>', on_leave)
+                    
+                    print("拖放功能已启用，使用tkinterdnd2库")
+                else:
+                    print("当前窗口不支持拖放功能")
+                
+            except ImportError:
+                print("未找到tkinterdnd2库，拖放功能不可用。请运行 'pip install tkinterdnd2' 安装。")
+            except Exception as e:
+                print(f"启用拖放功能时出错: {e}")
+        except Exception as e:
+            print(f"启用拖拽功能时出错: {e}")
     
     def create_widgets(self):
         # 创建顶部按钮区域
@@ -145,6 +228,8 @@ class WatermarkApp:
                 scrollregion=self.canvas.bbox("all")
             )
         )
+        
+
         
         self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.canvas.configure(yscrollcommand=scrollbar.set)
@@ -318,6 +403,32 @@ class WatermarkApp:
         # 处理完成
         self.root.after(0, lambda: self.process_complete(success_count, fail_count))
     
+    def check_for_dropped_files_at_startup(self):
+        # 检查启动时是否有文件被拖放到应用程序
+        # 在Windows上，拖放的文件会作为命令行参数传递
+        import sys
+        
+        # 检查是否有命令行参数（第一个参数是脚本本身）
+        if len(sys.argv) > 1:
+            # 过滤出图片文件
+            image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif']
+            valid_image_paths = []
+            
+            for file_path in sys.argv[1:]:
+                # 检查文件是否存在且为图片文件
+                if os.path.isfile(file_path):
+                    _, ext = os.path.splitext(file_path)
+                    if ext.lower() in image_extensions:
+                        valid_image_paths.append(file_path)
+            
+            # 如果有有效的图片文件，添加到列表
+            if valid_image_paths:
+                self.add_images(valid_image_paths)
+                
+    def on_closing(self):
+        # 销毁窗口
+        self.root.destroy()
+            
     def process_complete(self, success_count, fail_count):
         # 处理完成后的操作
         self.process_btn.config(state=tk.NORMAL)
@@ -512,8 +623,15 @@ class WatermarkApp:
             return False
 
 if __name__ == "__main__":
-    # 创建主窗口
-    root = tk.Tk()
+    try:
+        from tkinterdnd2 import TkinterDnD
+        # 创建支持拖放的主窗口
+        root = TkinterDnD.Tk()
+    except ImportError:
+        # 如果tkinterdnd2不可用，回退到标准Tk窗口
+        print("tkinterdnd2库不可用，使用标准窗口")
+        root = tk.Tk()
+    
     # 创建应用实例
     app = WatermarkApp(root)
     # 启动主循环
