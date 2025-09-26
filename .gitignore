@@ -48,6 +48,9 @@ pids/
 lib-cov/
 
 # Coverage directory used by tools like istanbul
+
+# Generated watermark images
+picture/picture_watermark/
 coverage/
 *.lcov
 

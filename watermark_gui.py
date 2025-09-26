@@ -1,7 +1,7 @@
 import os
 import sys
 import tkinter as tk
-from tkinter import filedialog, ttk, messagebox
+from tkinter import filedialog, ttk, messagebox, colorchooser
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 import exifread
 from datetime import datetime
@@ -152,6 +152,117 @@ class WatermarkApp:
         tk.Scale(font_size_frame, from_=10, to=100, orient=tk.HORIZONTAL, variable=self.font_size_var, length=200).pack(side=tk.LEFT, padx=5)
         tk.Label(font_size_frame, textvariable=self.font_size_var, font=self.font_config['normal'], width=5).pack(side=tk.LEFT, padx=5)
         
+        # 字体选择设置
+        font_frame = tk.Frame(settings_frame)
+        font_frame.pack(fill=tk.X, pady=5)
+        
+        tk.Label(font_frame, text="选择字体:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        self.font_var = tk.StringVar(value="Arial")
+        
+        # 获取系统字体列表
+        import sys
+        import os
+        if sys.platform.startswith('win'):
+            try:
+                import winreg
+                # 从Windows注册表获取已安装字体
+                font_reg_path = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, font_reg_path) as key:
+                    font_names = []
+                    i = 0
+                    while True:
+                        try:
+                            # 获取字体名称和文件名
+                            font_name, font_file, _ = winreg.EnumValue(key, i)
+                            # 提取字体名称（去掉后面的版本信息）
+                            font_base_name = font_name.split(' ')[0]
+                            if font_base_name and font_base_name not in font_names:
+                                font_names.append(font_base_name)
+                            i += 1
+                        except OSError:
+                            break
+                    # 添加一些常见字体作为后备
+                    common_fonts = ["Arial", "Times New Roman", "Courier New", "Microsoft YaHei", "SimHei", "SimSun"]
+                    for font in common_fonts:
+                        if font not in font_names:
+                            font_names.append(font)
+                    font_names.sort()
+            except Exception as e:
+                print(f"获取系统字体失败: {e}")
+                font_names = ["Arial", "Times New Roman", "Courier New", "Microsoft YaHei", "SimHei", "SimSun"]
+        else:
+            # 非Windows系统使用一组通用字体
+            font_names = ["Arial", "Times New Roman", "Courier New"]
+        
+        # 创建字体下拉菜单
+        font_combo = ttk.Combobox(font_frame, textvariable=self.font_var, values=font_names, state="readonly", width=30)
+        font_combo.pack(side=tk.LEFT, padx=5)
+        
+        # 字体样式设置（粗体和斜体）
+        font_style_frame = tk.Frame(settings_frame)
+        font_style_frame.pack(fill=tk.X, pady=5)
+        
+        tk.Label(font_style_frame, text="字体样式:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        
+        self.bold_var = tk.BooleanVar(value=False)
+        self.italic_var = tk.BooleanVar(value=False)
+        
+        bold_check = tk.Checkbutton(font_style_frame, text="粗体", variable=self.bold_var, font=self.font_config['normal'])
+        bold_check.pack(side=tk.LEFT, padx=10)
+        
+        italic_check = tk.Checkbutton(font_style_frame, text="斜体", variable=self.italic_var, font=self.font_config['normal'])
+        italic_check.pack(side=tk.LEFT, padx=10)
+        
+        # 阴影效果设置
+        shadow_frame = tk.Frame(settings_frame)
+        shadow_frame.pack(fill=tk.X, pady=5)
+        
+        tk.Label(shadow_frame, text="阴影效果:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        
+        self.shadow_var = tk.BooleanVar(value=False)
+        shadow_check = tk.Checkbutton(shadow_frame, text="启用阴影", variable=self.shadow_var, font=self.font_config['normal'])
+        shadow_check.pack(side=tk.LEFT, padx=10)
+        
+        # 阴影颜色设置
+        tk.Label(shadow_frame, text="阴影颜色:", font=self.font_config['normal'], width=8).pack(side=tk.LEFT, padx=5)
+        self.shadow_color_var = tk.StringVar(value="black")
+        shadow_color_combo = ttk.Combobox(shadow_frame, textvariable=self.shadow_color_var, 
+                                         values=['black', 'white', 'gray', 'red', 'blue', 'green'], 
+                                         state="readonly", width=10)
+        shadow_color_combo.pack(side=tk.LEFT, padx=5)
+        
+        # 阴影偏移设置
+        tk.Label(shadow_frame, text="偏移:", font=self.font_config['normal'], width=4).pack(side=tk.LEFT, padx=5)
+        self.shadow_offset_var = tk.IntVar(value=2)
+        shadow_offset_scale = tk.Scale(shadow_frame, from_=1, to=10, orient=tk.HORIZONTAL, 
+                                      variable=self.shadow_offset_var, length=100)
+        shadow_offset_scale.pack(side=tk.LEFT, padx=5)
+        
+        # 描边效果设置
+        stroke_frame = tk.Frame(settings_frame)
+        stroke_frame.pack(fill=tk.X, pady=5)
+        
+        tk.Label(stroke_frame, text="描边效果:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        
+        self.stroke_var = tk.BooleanVar(value=False)
+        stroke_check = tk.Checkbutton(stroke_frame, text="启用描边", variable=self.stroke_var, font=self.font_config['normal'])
+        stroke_check.pack(side=tk.LEFT, padx=10)
+        
+        # 描边颜色设置
+        tk.Label(stroke_frame, text="描边颜色:", font=self.font_config['normal'], width=8).pack(side=tk.LEFT, padx=5)
+        self.stroke_color_var = tk.StringVar(value="white")
+        stroke_color_combo = ttk.Combobox(stroke_frame, textvariable=self.stroke_color_var, 
+                                         values=['black', 'white', 'gray', 'red', 'blue', 'green'], 
+                                         state="readonly", width=10)
+        stroke_color_combo.pack(side=tk.LEFT, padx=5)
+        
+        # 描边宽度设置
+        tk.Label(stroke_frame, text="宽度:", font=self.font_config['normal'], width=4).pack(side=tk.LEFT, padx=5)
+        self.stroke_width_var = tk.IntVar(value=1)
+        stroke_width_scale = tk.Scale(stroke_frame, from_=1, to=5, orient=tk.HORIZONTAL, 
+                                     variable=self.stroke_width_var, length=100)
+        stroke_width_scale.pack(side=tk.LEFT, padx=5)
+        
         # 水印位置设置
         position_frame = tk.Frame(settings_frame)
         position_frame.pack(fill=tk.X, pady=5)
@@ -162,15 +273,40 @@ class WatermarkApp:
         position_combo = ttk.Combobox(position_frame, textvariable=self.position_var, values=positions, state="readonly", width=15)
         position_combo.pack(side=tk.LEFT, padx=5)
         
-        # 文本颜色设置
+        # 文本颜色设置 - 使用调色板
         text_color_frame = tk.Frame(settings_frame)
         text_color_frame.pack(fill=tk.X, pady=5)
         
         tk.Label(text_color_frame, text="文本颜色:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
         self.text_color_var = tk.StringVar(value="black")
-        colors = ['black', 'white', 'red', 'green', 'blue', 'yellow', 'cyan', 'magenta']
+        
+        # 添加颜色预览标签和选择按钮
+        self.color_preview = tk.Label(text_color_frame, width=10, height=2, bg=self.text_color_var.get(), relief=tk.RAISED)
+        self.color_preview.pack(side=tk.LEFT, padx=5)
+        
+        # 添加颜色选择按钮，打开调色板
+        def choose_color():
+            # 打开颜色选择对话框
+            color = tk.colorchooser.askcolor(title="选择文本颜色", initialcolor=self.text_color_var.get())
+            if color[1]:  # 如果用户选择了颜色而不是取消
+                # 更新颜色变量和预览
+                self.text_color_var.set(color[1])
+                self.color_preview.config(bg=color[1])
+                print(f"选择了颜色: {color[1]}")
+        
+        color_btn = tk.Button(text_color_frame, text="选择颜色", command=choose_color, font=self.font_config['normal'], width=10)
+        color_btn.pack(side=tk.LEFT, padx=5)
+        
+        # 添加最近使用的颜色下拉列表，保留快速选择功能
+        colors = ['black', 'white', 'red', 'green', 'blue', 'yellow', 'cyan', 'magenta', 'gray', 'orange', 'purple', 'brown', 'pink']
         text_color_combo = ttk.Combobox(text_color_frame, textvariable=self.text_color_var, values=colors, state="readonly", width=15)
         text_color_combo.pack(side=tk.LEFT, padx=5)
+        
+        # 当从下拉列表选择颜色时，更新预览
+        def update_preview(event):
+            self.color_preview.config(bg=self.text_color_var.get())
+        
+        text_color_combo.bind("<<ComboboxSelected>>", update_preview)
         
         # 文本透明度设置
         opacity_frame = tk.Frame(settings_frame)
@@ -451,6 +587,25 @@ class WatermarkApp:
         # 选择输出文件夹
         folder_path = filedialog.askdirectory(title="选择输出文件夹")
         if folder_path:
+            # 如果已导入图片，检查输出文件夹是否是原图片所在文件夹
+            if self.image_paths:
+                is_invalid_folder = False
+                for img_path in self.image_paths:
+                    img_dir = os.path.dirname(img_path)
+                    # 检查是否是同一个文件夹
+                    if os.path.normpath(folder_path) == os.path.normpath(img_dir):
+                        is_invalid_folder = True
+                        break
+                    # 检查是否是子文件夹（保留原有的检查逻辑）
+                    if os.path.commonpath([img_dir, folder_path]) == img_dir:
+                        is_invalid_folder = True
+                        break
+                
+                if is_invalid_folder:
+                    messagebox.showwarning("警告", "输出文件夹不能是原图片所在文件夹或其子文件夹，以防止覆盖原图")
+                    return
+            
+            # 所有检查通过，设置输出文件夹
             self.output_folder_var.set(folder_path)
     
     def update_status(self):
@@ -625,7 +780,9 @@ class WatermarkApp:
     def parse_color(self, color_str, opacity=100):
         # 解析颜色字符串，opacity参数控制透明度(0-100%)
         # 注意：opacity值越大，透明度越高
-        # 预定义颜色映射
+        print(f"解析颜色: '{color_str}', 透明度设置: {opacity}%")
+        
+        # 预定义颜色映射 - 增加更多常见颜色
         color_map = {
             'black': (0, 0, 0, 255),
             'white': (255, 255, 255, 255),
@@ -635,6 +792,12 @@ class WatermarkApp:
             'yellow': (255, 255, 0, 255),
             'cyan': (0, 255, 255, 255),
             'magenta': (255, 0, 255, 255),
+            'gray': (128, 128, 128, 255),
+            'grey': (128, 128, 128, 255),
+            'orange': (255, 165, 0, 255),
+            'purple': (128, 0, 128, 255),
+            'brown': (165, 42, 42, 255),
+            'pink': (255, 192, 203, 255)
         }
         
         # 检查是否为预定义颜色
@@ -642,6 +805,7 @@ class WatermarkApp:
             r, g, b, a = color_map[color_str.lower()]
             # 应用透明度：opacity值越大，透明度越高
             a = int(a * (100 - opacity) / 100)
+            print(f"使用预定义颜色: {color_str} -> RGBA: ({r}, {g}, {b}, {a})")
             return (r, g, b, a)
         
         # 检查是否为十六进制颜色
@@ -656,6 +820,7 @@ class WatermarkApp:
             a = int(alpha_hex, 16)
             # 应用透明度：opacity值越大，透明度越高
             a = int(a * (100 - opacity) / 100)
+            print(f"使用十六进制颜色: {color_str} -> RGBA: ({r}, {g}, {b}, {a})")
             return (r, g, b, a)
         
         # 检查是否为RGB/RGBA元组格式
@@ -673,15 +838,18 @@ class WatermarkApp:
             a = max(0, min(255, a))
             # 应用透明度：opacity值越大，透明度越高
             a = int(a * (100 - opacity) / 100)
+            print(f"使用RGB元组颜色: {color_str} -> RGBA: ({r}, {g}, {b}, {a})")
             return (r, g, b, a)
         
-        # 默认返回黑色
+        # 默认返回黑色，但使用与前面一致的透明度计算方式
         print(f"警告: 无法解析颜色 '{color_str}'，使用默认黑色")
-        return (0, 0, 0, int(255 * opacity / 100))
+        # 统一透明度计算方式
+        return (0, 0, 0, int(255 * (100 - opacity) / 100))
     
     def add_watermark_to_image(self, image_path, output_dir, font_size=30, text_color='black', bg_color='white', position='bottom-right', output_format='JPEG', quality=95, resize_method='none', target_width=1920, target_height=1080, scale_percent=100):
         # 为图片添加水印并保存
         try:
+            print(f"\n=== 开始处理图片: {os.path.basename(image_path)} ===")
             # 打开图片
             img = Image.open(image_path)
             width, height = img.size
@@ -735,61 +903,104 @@ class WatermarkApp:
                     dt = datetime.fromtimestamp(mtime)
                     watermark_text = dt.strftime('%Y-%m-%d')
             
-            # 设置水印字体和大小 - 改进版本支持中文
+            # 设置水印字体和大小
             font = None
             try:
-                # 方法1: 尝试使用系统字体目录
-                import sys
+                # 获取用户选择的字体、大小
+                selected_font = self.font_var.get()
+                print(f"=== 尝试加载字体: {selected_font}, 大小: {font_size} ===")
+                
+                # 预定义常见字体及其文件路径映射（根据测试结果，这是最可靠的方法）
+                common_font_paths = {
+                    'Microsoft YaHei': 'msyh.ttc',
+                    'SimHei': 'simhei.ttf',
+                    'SimSun': 'simsun.ttc',
+                    'Arial': 'arial.ttf',
+                    'Times New Roman': 'times.ttf',
+                    'Courier New': 'cour.ttf',
+                    'KaiTi': 'simkai.ttf',
+                    'FangSong': 'simsun.ttc'
+                }
+                
+                # 首先尝试使用Windows系统字体目录的绝对路径
                 if sys.platform.startswith('win'):
-                    # Windows系统字体目录
-                    font_dirs = ['C:\\Windows\\Fonts']
-                    # Windows常用中文字体文件名
-                    win_font_files = ['msyh.ttc', 'simhei.ttf', 'simsun.ttc', 'msyhbd.ttc', 'simkai.ttf']
+                    font_dir = 'C:\\Windows\\Fonts'
                     
-                    for font_dir in font_dirs:
-                        if os.path.exists(font_dir):
-                            for font_file in win_font_files:
-                                font_path = os.path.join(font_dir, font_file)
-                                if os.path.exists(font_path):
+                    # 检查字体是否在预定义列表中
+                    if selected_font in common_font_paths:
+                        font_file = common_font_paths[selected_font]
+                        font_path = os.path.join(font_dir, font_file)
+                        
+                        if os.path.exists(font_path):
+                            try:
+                                font = ImageFont.truetype(font_path, font_size)
+                                print(f"✓ 成功从预定义路径加载字体: {font_path}")
+                            except (IOError, OSError) as e:
+                                print(f"✗ 无法从预定义路径加载字体: {font_path}, 错误: {str(e)}")
+                    else:
+                        # 如果不在预定义列表中，尝试映射到最接近的字体
+                        print(f"✗ 字体 '{selected_font}' 不在预定义列表中，尝试使用替代字体")
+                        # 尝试使用Arial作为默认替代字体
+                        if 'Arial' in common_font_paths:
+                            font_file = common_font_paths['Arial']
+                            font_path = os.path.join(font_dir, font_file)
+                            if os.path.exists(font_path):
+                                try:
+                                    font = ImageFont.truetype(font_path, font_size)
+                                    print(f"✓ 成功加载替代字体: {font_path}")
+                                except (IOError, OSError) as e:
+                                    print(f"✗ 无法加载替代字体: {font_path}, 错误: {str(e)}")
+                
+                # 如果预定义路径加载失败，尝试搜索系统字体目录的所有字体文件
+                if font is None and sys.platform.startswith('win'):
+                    font_dir = 'C:\\Windows\\Fonts'
+                    if os.path.exists(font_dir):
+                        print(f"✗ 预定义路径加载失败，尝试搜索系统字体目录")
+                        # 搜索常见的字体文件格式
+                        font_extensions = ['.ttf', '.ttc', '.otf']
+                        # 优先搜索的常见字体文件
+                        priority_files = ['arial.ttf', 'simhei.ttf', 'msyh.ttc', 'simsun.ttc', 'times.ttf', 'cour.ttf']
+                        
+                        # 先尝试优先级列表中的字体
+                        for font_file in priority_files:
+                            font_path = os.path.join(font_dir, font_file)
+                            if os.path.exists(font_path):
+                                try:
+                                    font = ImageFont.truetype(font_path, font_size)
+                                    print(f"✓ 成功从系统目录加载优先字体: {font_path}")
+                                    break
+                                except (IOError, OSError):
+                                    continue
+                        
+                        # 如果优先级列表中的字体都失败，尝试搜索所有字体文件
+                        if font is None:
+                            for file in os.listdir(font_dir):
+                                if any(file.lower().endswith(ext) for ext in font_extensions):
+                                    font_path = os.path.join(font_dir, file)
                                     try:
-                                        print(f"尝试从路径加载字体: {font_path}, 大小: {font_size}")
                                         font = ImageFont.truetype(font_path, font_size)
-                                        print(f"成功加载字体: {font_file}")
+                                        print(f"✓ 成功从系统目录加载字体: {font_path}")
                                         break
                                     except (IOError, OSError):
                                         continue
-                            if font is not None:
-                                break
                 
-                # 方法2: 如果方法1失败，尝试使用字体名称（PIL会搜索系统字体）
+                # 如果前面都失败，使用PIL默认字体作为最后的后备选项
                 if font is None:
-                    # 尝试使用常见中文字体名称
-                    font_names = ["Microsoft YaHei", "SimHei", "SimSun", "KaiTi", "Arial Unicode MS"]
-                    for font_name in font_names:
-                        try:
-                            print(f"尝试使用字体名称加载: {font_name}, 大小: {font_size}")
-                            font = ImageFont.truetype(font_name, font_size)
-                            print(f"成功加载字体: {font_name}")
-                            break
-                        except (IOError, OSError):
-                            continue
-                
-                # 方法3: 如果前面都失败，使用PIL默认字体并启用抗锯齿
-                if font is None:
-                    print(f"无法加载中文字体，使用PIL默认字体，大小: {font_size}")
-                    # 使用默认字体并确保字体大小正确设置
+                    print(f"✗ 无法加载任何字体，使用PIL默认字体")
                     font = ImageFont.load_default()
-                    
-                    # 这里需要注意：默认字体可能不支持中文，但我们已经添加了足够的日志记录以帮助排查问题
             except Exception as e:
-                print(f"字体加载异常: {str(e)}")
+                print(f"✗ 字体加载异常: {str(e)}")
                 # 出现任何异常，都使用默认字体
                 font = ImageFont.load_default()
+            
+            print(f"最终使用字体: {'默认字体' if font is ImageFont.load_default() else '成功加载的字体'}")
             
             # 获取文本大小
             bbox = font.getbbox(watermark_text)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
+            
+            print(f"水印文本: '{watermark_text}', 文本尺寸: {text_width}x{text_height}")
             
             # 计算水印位置
             margin = 10
@@ -817,17 +1028,42 @@ class WatermarkApp:
             
             # 获取透明度设置
             text_opacity = self.opacity_var.get()
+            print(f"水印设置: 文本='{watermark_text}', 字体='{selected_font}', 大小={font_size}, 颜色={text_color}, 不透明度={text_opacity}%")
             
             # 解析颜色并应用透明度
             text_color_rgba = self.parse_color(text_color, text_opacity)
+            print(f"应用的颜色RGBA值: {text_color_rgba}")
             # 不再使用背景颜色 - 移除背景绘制
             
             # 创建一个透明图层用于绘制水印
             watermark_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
             watermark_draw = ImageDraw.Draw(watermark_layer)
             
-            # 在透明图层上绘制水印文本（无背景）
+            print(f"绘制水印: 位置({x}, {y}), 颜色{text_color_rgba}")
+            
+            # 在透明图层上绘制水印文本
+            # 先绘制描边（如果启用）
+            if self.stroke_var.get():
+                stroke_width = self.stroke_width_var.get()
+                stroke_color_rgba = self.parse_color(self.stroke_color_var.get(), text_opacity)
+                # 使用循环在不同方向上绘制描边
+                for offset_x in range(-stroke_width, stroke_width + 1):
+                    for offset_y in range(-stroke_width, stroke_width + 1):
+                        if offset_x != 0 or offset_y != 0:
+                            watermark_draw.text((x + offset_x, y + offset_y), 
+                                              watermark_text, font=font, fill=stroke_color_rgba)
+            
+            # 再绘制阴影（如果启用）
+            if self.shadow_var.get():
+                shadow_offset = self.shadow_offset_var.get()
+                shadow_color_rgba = self.parse_color(self.shadow_color_var.get(), text_opacity)
+                watermark_draw.text((x + shadow_offset, y + shadow_offset), 
+                                  watermark_text, font=font, fill=shadow_color_rgba)
+            
+            # 最后绘制主要文本
             watermark_draw.text((x, y), watermark_text, font=font, fill=text_color_rgba)
+            
+
             
             # 将水印图层合并到原图上
             img = Image.alpha_composite(img, watermark_layer)
@@ -863,13 +1099,16 @@ class WatermarkApp:
             
             # 根据输出格式设置保存参数
             if output_format == 'PNG':
+                # 对于PNG格式，直接保存以保留透明度
                 img.save(output_path, format='PNG')
+                print(f"已保存带透明背景的PNG图片: {output_path}")
             else:  # JPEG or JPG
                 # 统一使用JPEG格式保存，因为JPG是JPEG的一种常见扩展名
-                # 由于我们已经处理了透明度，这里直接使用alpha通道作为蒙版
+                # 由于JPEG不支持透明背景，创建白色背景并使用alpha通道作为蒙版
                 background = Image.new('RGB', img.size, (255, 255, 255))
                 background.paste(img, mask=img.split()[3])  # 3 is the alpha channel
                 background.save(output_path, format='JPEG', quality=quality)
+                print(f"已保存JPEG图片 (透明背景转换为白色): {output_path}")
             
             return True
         except Exception as e:
