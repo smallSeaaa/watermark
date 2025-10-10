@@ -7,6 +7,8 @@ import exifread
 from datetime import datetime
 import re
 import threading
+import json
+import os
 
 # 确保中文显示正常
 if sys.platform == 'win32':
@@ -41,6 +43,9 @@ class WatermarkApp:
             'normal': ('Microsoft YaHei', 10),
             'small': ('Microsoft YaHei', 9)
         }
+        
+        # 设置文件路径
+        self.settings_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.json')
         
         # 设置窗口背景
         self.root.configure(bg=self.colors['background'])
@@ -186,6 +191,18 @@ class WatermarkApp:
         self.right_canvas.bind("<MouseWheel>", _right_mousewheel)
         self.right_scrollable_frame.bind("<MouseWheel>", _right_mousewheel)
         
+        # 水印模板相关
+        self.templates = {}  # 存储所有水印模板
+        # 创建templates文件夹（如果不存在）
+        templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+        if not os.path.exists(templates_dir):
+            os.makedirs(templates_dir)
+        self.template_file = os.path.join(templates_dir, 'watermark_templates.json')
+        self._load_all_templates()  # 加载已保存的模板
+        
+        # 加载上次关闭时的设置
+        self._load_settings()
+        
         # 启用拖拽功能
         self.enable_drag_and_drop()
         
@@ -197,6 +214,10 @@ class WatermarkApp:
         
         # 为所有设置控件绑定事件，实现实时预览
         self.bind_preview_events()
+        
+        # 如果有上次保存的设置，应用这些设置
+        if hasattr(self, 'last_settings') and self.last_settings:
+            self._apply_last_settings()
         
     def setup_ttk_styles(self):
         # 设置ttk组件的样式
@@ -372,6 +393,59 @@ class WatermarkApp:
             self.quality_frame.pack(fill=tk.X, pady=5)
         else:
             self.quality_frame.pack_forget()
+            
+    def _apply_last_settings(self):
+        # 应用上次保存的设置
+        if not self.last_settings:
+            return
+        
+        try:
+            settings = self.last_settings
+            
+            # 应用水印设置
+            if 'font_size' in settings: self.font_size_var.set(settings['font_size'])
+            if 'font' in settings: self.font_var.set(settings['font'])
+            if 'bold' in settings: self.bold_var.set(settings['bold'])
+            if 'italic' in settings: self.italic_var.set(settings['italic'])
+            if 'has_shadow' in settings: self.shadow_var.set(settings['has_shadow'])
+            if 'shadow_color' in settings: self.shadow_color_var.set(settings['shadow_color'])
+            if 'shadow_offset' in settings: self.shadow_offset_var.set(settings['shadow_offset'])
+            if 'has_stroke' in settings: self.stroke_var.set(settings['has_stroke'])
+            if 'stroke_color' in settings: self.stroke_color_var.set(settings['stroke_color'])
+            if 'stroke_width' in settings: self.stroke_width_var.set(settings['stroke_width'])
+            if 'position' in settings: self.position_var.set(settings['position'])
+            if 'text_color' in settings: 
+                self.text_color_var.set(settings['text_color'])
+                self.color_preview.config(bg=settings['text_color'])
+            if 'opacity' in settings: self.opacity_var.set(settings['opacity'])
+            if 'text_type' in settings: self.text_type_var.set(settings['text_type'])
+            if 'custom_text' in settings: self.custom_text_var.set(settings['custom_text'])
+            
+            # 应用导出设置
+            if 'output_folder' in settings: self.output_folder_var.set(settings['output_folder'])
+            if 'format' in settings: self.format_var.set(settings['format'])
+            if 'quality' in settings: self.quality_var.set(settings['quality'])
+            
+            # 应用图片尺寸设置
+            if 'scale' in settings: self.scale_var.set(settings['scale'])
+            if 'percent' in settings: self.percent_var.set(settings['percent'])
+            if 'width' in settings: self.width_var.set(settings['width'])
+            if 'height' in settings: self.height_var.set(settings['height'])
+            if 'constrain' in settings: self.constrain_var.set(settings['constrain'])
+            
+            # 应用命名规则
+            if 'naming' in settings: self.naming_var.set(settings['naming'])
+            if 'prefix' in settings: self.prefix_var.set(settings['prefix'])
+            if 'suffix' in settings: self.suffix_var.set(settings['suffix'])
+            
+            # 更新相关UI状态
+            self.on_text_type_change()
+            self.on_scale_change()
+            self.on_naming_change()
+            self.on_format_change()
+            
+        except Exception as e:
+            print(f"应用上次设置时出错: {e}")
     
     def on_text_type_change(self, *args):
         # 根据选择的文本类型启用或禁用自定义文本输入框
@@ -381,10 +455,207 @@ class WatermarkApp:
             self.custom_text_entry.config(state="disabled")
         self.update_preview()
     
+    def _load_all_templates(self):
+        # 加载所有已保存的水印模板
+        try:
+            if os.path.exists(self.template_file):
+                with open(self.template_file, 'r', encoding='utf-8') as f:
+                    self.templates = json.load(f)
+        except Exception as e:
+            print(f"加载水印模板时出错: {e}")
+            self.templates = {}
+            
+    def _save_settings(self):
+        # 保存当前设置
+        try:
+            # 收集所有设置
+            settings = {
+                # 水印设置
+                'font_size': self.font_size_var.get(),
+                'font': self.font_var.get(),
+                'bold': self.bold_var.get(),
+                'italic': self.italic_var.get(),
+                'has_shadow': self.shadow_var.get(),
+                'shadow_color': self.shadow_color_var.get(),
+                'shadow_offset': self.shadow_offset_var.get(),
+                'has_stroke': self.stroke_var.get(),
+                'stroke_color': self.stroke_color_var.get(),
+                'stroke_width': self.stroke_width_var.get(),
+                'position': self.position_var.get(),
+                'text_color': self.text_color_var.get(),
+                'opacity': self.opacity_var.get(),
+                'text_type': self.text_type_var.get(),
+                'custom_text': self.custom_text_var.get(),
+                
+                # 导出设置
+                'output_folder': self.output_folder_var.get(),
+                'format': self.format_var.get(),
+                'quality': self.quality_var.get(),
+                
+                # 图片尺寸设置
+                'scale': self.scale_var.get(),
+                'percent': self.percent_var.get(),
+                'width': self.width_var.get(),
+                'height': self.height_var.get(),
+                'constrain': self.constrain_var.get(),
+                
+                # 命名规则
+                'naming': self.naming_var.get(),
+                'prefix': self.prefix_var.get(),
+                'suffix': self.suffix_var.get()
+            }
+            
+            # 保存设置到文件
+            with open(self.settings_file, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"保存设置时出错: {e}")
+            
+    def _load_settings(self):
+        # 加载上次保存的设置
+        try:
+            if os.path.exists(self.settings_file):
+                with open(self.settings_file, 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                
+                # 应用设置（仅在对应的变量已创建后应用）
+                # 注意：由于设置的加载发生在create_widgets之前，
+                # 所以这些设置会在界面创建后通过其他方式应用
+                # 这里我们只是保存设置到临时存储
+                self.last_settings = settings
+            else:
+                self.last_settings = None
+        except Exception as e:
+            print(f"加载设置时出错: {e}")
+            self.last_settings = None
+    
+    def _save_all_templates(self):
+        # 保存所有水印模板到文件
+        try:
+            with open(self.template_file, 'w', encoding='utf-8') as f:
+                json.dump(self.templates, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"保存水印模板时出错: {e}")
+            messagebox.showerror("错误", f"保存水印模板失败: {e}")
+    
+    def _update_template_combobox(self):
+        # 更新模板下拉列表
+        template_names = list(self.templates.keys())
+        self.template_combo['values'] = template_names
+        if template_names:
+            self.template_combo.current(0)
+        else:
+            self.template_combo.set('')
+    
+    def save_template(self):
+        # 保存当前水印设置为模板
+        template_name = self.template_name_var.get().strip()
+        if not template_name:
+            messagebox.showwarning("警告", "请输入模板名称")
+            return
+        
+        # 收集所有水印参数
+        template_params = {
+            'font_size': self.font_size_var.get(),
+            'font': self.font_var.get(),
+            'bold': self.bold_var.get(),
+            'italic': self.italic_var.get(),
+            'has_shadow': self.shadow_var.get(),
+            'shadow_color': self.shadow_color_var.get(),
+            'shadow_offset': self.shadow_offset_var.get(),
+            'has_stroke': self.stroke_var.get(),
+            'stroke_color': self.stroke_color_var.get(),
+            'stroke_width': self.stroke_width_var.get(),
+            'position': self.position_var.get(),
+            'text_color': self.text_color_var.get(),
+            'opacity': self.opacity_var.get(),
+            'text_type': self.text_type_var.get(),
+            'custom_text': self.custom_text_var.get()
+        }
+        
+        # 保存模板
+        self.templates[template_name] = template_params
+        self._save_all_templates()
+        self._update_template_combobox()
+        
+        messagebox.showinfo("成功", f"模板 '{template_name}' 已保存")
+        self.template_name_var.set('')
+    
+    def load_template(self):
+        # 加载选中的模板
+        template_name = self.template_combo.get()
+        if not template_name or template_name not in self.templates:
+            messagebox.showwarning("警告", "请选择有效的模板")
+            return
+        
+        # 获取模板参数
+        template_params = self.templates[template_name]
+        
+        # 应用模板参数
+        self.font_size_var.set(template_params['font_size'])
+        self.font_var.set(template_params['font'])
+        self.bold_var.set(template_params['bold'])
+        self.italic_var.set(template_params['italic'])
+        self.shadow_var.set(template_params['has_shadow'])
+        self.shadow_color_var.set(template_params['shadow_color'])
+        self.shadow_offset_var.set(template_params['shadow_offset'])
+        self.stroke_var.set(template_params['has_stroke'])
+        self.stroke_color_var.set(template_params['stroke_color'])
+        self.stroke_width_var.set(template_params['stroke_width'])
+        self.position_var.set(template_params['position'])
+        self.text_color_var.set(template_params['text_color'])
+        self.opacity_var.set(template_params['opacity'])
+        self.text_type_var.set(template_params['text_type'])
+        self.custom_text_var.set(template_params['custom_text'])
+        
+        # 更新相关UI状态
+        self.on_text_type_change()
+        self.update_preview()
+        
+        messagebox.showinfo("成功", f"已加载模板 '{template_name}'")
+    
+    def delete_template(self):
+        # 删除选中的模板
+        template_name = self.template_combo.get()
+        if not template_name or template_name not in self.templates:
+            messagebox.showwarning("警告", "请选择有效的模板")
+            return
+        
+        # 确认删除
+        if messagebox.askyesno("确认", f"确定要删除模板 '{template_name}' 吗？"):
+            del self.templates[template_name]
+            self._save_all_templates()
+            self._update_template_combobox()
+            messagebox.showinfo("成功", f"模板 '{template_name}' 已删除")
+    
     def move_settings_to_right(self):
         # 创建水印设置区域
         settings_frame = ttk.LabelFrame(self.right_scrollable_frame, text="水印设置", padding=(15, 10))
         settings_frame.pack(fill=tk.X, padx=10, pady=8)
+        
+        # 水印模板管理
+        template_frame = tk.Frame(settings_frame)
+        template_frame.pack(fill=tk.X, pady=5)
+        
+        tk.Label(template_frame, text="模板名称:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        self.template_name_var = tk.StringVar(value='')
+        self.template_name_entry = tk.Entry(template_frame, textvariable=self.template_name_var, font=self.font_config['normal'], width=15)
+        self.template_name_entry.pack(side=tk.LEFT, padx=5)
+        
+        self.save_template_btn = tk.Button(template_frame, text="保存模板", command=self.save_template, font=self.font_config['normal'], width=10)
+        self.save_template_btn.pack(side=tk.LEFT, padx=5)
+        
+        tk.Label(template_frame, text="加载模板:", font=self.font_config['normal'], width=10).pack(side=tk.LEFT, padx=5)
+        self.template_var = tk.StringVar(value='')
+        self.template_combo = ttk.Combobox(template_frame, textvariable=self.template_var, state="readonly", width=15)
+        self.template_combo.pack(side=tk.LEFT, padx=5)
+        self._update_template_combobox()
+        
+        self.load_template_btn = tk.Button(template_frame, text="加载", command=self.load_template, font=self.font_config['normal'], width=6)
+        self.load_template_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.delete_template_btn = tk.Button(template_frame, text="删除", command=self.delete_template, font=self.font_config['normal'], width=6)
+        self.delete_template_btn.pack(side=tk.LEFT, padx=5)
         
         # 字体大小设置
         font_size_frame = tk.Frame(settings_frame)
@@ -1093,6 +1364,8 @@ class WatermarkApp:
                 self.add_images(valid_image_paths)
                 
     def on_closing(self):
+        # 保存设置
+        self._save_settings()
         # 销毁窗口
         self.root.destroy()
             
